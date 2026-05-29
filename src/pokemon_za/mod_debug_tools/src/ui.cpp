@@ -1148,7 +1148,7 @@ void setup_ui() {
                 _.min = 1;
                 _.value = 1;
                 _.max = 2634;
-                if (is_version("2.0.0") || is_version("2.0.1")) {
+                if (is_version("2.0.0") || is_version("2.0.1") || is_version("2.0.2")) {
                     _.max = 2684;
                 }
             });
