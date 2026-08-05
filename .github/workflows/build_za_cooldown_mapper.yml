@@ -1,0 +1,93 @@
+name: Build ZA Cooldown Mapper
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ZA Debug Tools
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4.2.2
+        with:
+          submodules: recursive
+
+      - name: Install system packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y liblz4-dev cmake ninja-build autoconf automake libtool pkg-config
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache built Switch STL
+        uses: actions/cache@v4
+        with:
+          path: lib/stl
+          key: switch-stl-${{ runner.os }}-clang20-v1
+
+      - name: Cache Python environment
+        uses: actions/cache@v4
+        with:
+          path: .python_env
+          key: switch-python-env-${{ runner.os }}-py312-v1
+
+      - name: Set up switch-tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/switchbrew/switch-tools
+          cd switch-tools
+          ./autogen.sh
+          ./configure
+          make -j "$(nproc)"
+
+      - name: Set up Clang 20
+        shell: bash
+        run: |
+          set -euo pipefail
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 20
+          sudo apt-get install -y clang-20 llvm-20 lld-20 libclang-20-dev llvm-20-dev
+          LLVM_BIN=/usr/lib/llvm-20/bin
+          test -x "$LLVM_BIN/clang"
+          test -x "$LLVM_BIN/clang++"
+          test -x "$LLVM_BIN/ld.lld"
+          echo "$LLVM_BIN" >> "$GITHUB_PATH"
+
+      - name: Configure
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="/usr/lib/llvm-20/bin:$PATH"
+          export SWITCHTOOLS="$GITHUB_WORKSPACE/switch-tools"
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain.cmake \
+            -DCMAKE_C_COMPILER=/usr/lib/llvm-20/bin/clang \
+            -DCMAKE_CXX_COMPILER=/usr/lib/llvm-20/bin/clang++ \
+            -DCMAKE_ASM_COMPILER=/usr/lib/llvm-20/bin/clang
+
+      - name: Build ZA Debug Tools package
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="/usr/lib/llvm-20/bin:$PATH"
+          export SWITCHTOOLS="$GITHUB_WORKSPACE/switch-tools"
+          cmake --build build --target ZA_Debug_Tools_zip_modmanager -j 4
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZA-Debug-Tools-Cooldown-Mapper-v1
+          path: build/zips/*.zip
+          if-no-files-found: error
