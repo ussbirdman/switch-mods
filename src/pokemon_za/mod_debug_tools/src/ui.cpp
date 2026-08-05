@@ -826,48 +826,6 @@ void setup_ui() {
         });
     });
 
-    static auto cooldownMapperWindow = ROOT.Window([](Window& _) {
-        _.title = "Cooldown Object Mapper";
-        _.initialPos = ImVec2(600, 50);
-        _.initialSize = ImVec2(760, 620);
-
-        _.FunctionElement([]() {
-            ImGui::TextWrapped(
-                "Read-only diagnostic. Disable all Atmosphere cheats for this test. Deploy a Pokemon "
-                "and wait about one second before arming. Arm PLAYER, close the menus, then use one "
-                "move. Reopen the menus, arm OPPONENT, close them, and wait for one opponent move."
-            );
-            ImGui::Spacing();
-
-            if (ImGui::Button("Refresh party pointers")) {
-                cooldownMapperRefreshParty();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Arm PLAYER capture")) {
-                cooldownMapperRefreshParty();
-                cooldownMapperArmPlayer();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Arm OPPONENT capture")) {
-                cooldownMapperRefreshParty();
-                cooldownMapperArmOpponent();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Clear captures")) {
-                cooldownMapperClear();
-            }
-
-            if (ImGui::Button("Write snapshot to Ryubing log")) {
-                cooldownMapperLogSnapshot();
-            }
-
-            ImGui::Separator();
-            ImGui::BeginChild("CooldownMapperOutput", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
-            ImGui::TextUnformatted(cooldownMapperGetText());
-            ImGui::EndChild();
-        });
-    });
-
     ROOT.Window([](Window& _) {
         _.title = STR(MODULE_NAME_SPACES) " - By Martmists";
         _.toggleable = false;
@@ -897,10 +855,6 @@ void setup_ui() {
                 _.MenuItem([](MenuItem &_) {
                     _.label = "Party Inspector";
                     _.checked = &partyWindow->open;
-                });
-                _.MenuItem([](MenuItem &_) {
-                    _.label = "Cooldown Object Mapper";
-                    _.checked = &cooldownMapperWindow->open;
                 });
                 _.MenuItem([](MenuItem &_) {
                     _.label = "Quest Inspector";
@@ -1044,6 +998,21 @@ void setup_ui() {
             });
             _.Checkbox("Always Max Mega Energy", [](bool it){
                 setAlwaysMaxEnergy(it);
+            });
+            _.Checkbox("Always Charged Moves (Player Party)", [](bool it) {
+                setAlwaysChargedPlayerParty(it);
+            });
+            _.FunctionElement([]() {
+                if (ImGui::Button("Refresh Party Targets")) {
+                    refreshAlwaysChargedPartyTargets();
+                }
+                ImGui::SameLine();
+                ImGui::Text("Cached targets: %d / 6", getAlwaysChargedPartyTargetCount());
+                ImGui::TextWrapped(
+                    "Enable the toggle after loading a save. Refresh the targets after changing "
+                    "your party. Only objects whose address exactly matches a cached party member "
+                    "are modified."
+                );
             });
         });
 

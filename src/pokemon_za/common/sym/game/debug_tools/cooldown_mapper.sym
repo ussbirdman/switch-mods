@@ -1,4 +1,5 @@
-// Internal diagnostic symbol used only by the v2.0.2 cooldown object mapper.
-// Function at main + 0x00D18420 updates the four float cooldown fields at object + 0x64.
+// Pokemon Legends: Z-A v2.0.2 cooldown updater.
+// The hook positively matches the object pointer against the six cached
+// player-party ik::PokemonParam pointers before clearing object+0x64..+0x70.
 @game:202
 ZA_DebugTools_CooldownUpdate202 = 0x00D18420

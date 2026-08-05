@@ -18,10 +18,7 @@ struct PokemonData {
     int moves[4] = {1, 2, 3, 4};
 };
 
-// Cooldown mapper diagnostic controls. This diagnostic never writes cooldown data.
-void cooldownMapperArmPlayer();
-void cooldownMapperArmOpponent();
-void cooldownMapperClear();
-void cooldownMapperRefreshParty();
-void cooldownMapperLogSnapshot();
-const char* cooldownMapperGetText();
+// Player-party-only move cooldown controls.
+void setAlwaysChargedPlayerParty(bool value);
+void refreshAlwaysChargedPartyTargets();
+int getAlwaysChargedPartyTargetCount();
