@@ -75,13 +75,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: source/lib/std
-          key: switch-std-${{ runner.os }}-clang20-v3
+          key: switch-std-${{ runner.os }}-clang20-v4
 
       - name: Cache Python environment
         uses: actions/cache@v4
         with:
           path: source/.python_env
-          key: switch-python-env-${{ runner.os }}-py312-v3
+          key: switch-python-env-${{ runner.os }}-py312-v4
 
       - name: Set up switch-tools
         shell: bash
@@ -114,31 +114,32 @@ jobs:
           test -x "$LLVM_BIN/ld.lld"
           echo "$LLVM_BIN" >> "$GITHUB_PATH"
 
-      - name: Build Sail with the repository helper
+      - name: Build Sail directly
         shell: bash
         run: |
           set -euo pipefail
           export PATH="/usr/lib/llvm-20/bin:$PATH"
-          export CC="/usr/lib/llvm-20/bin/clang"
-          export CXX="/usr/lib/llvm-20/bin/clang++"
 
           cd "$GITHUB_WORKSPACE/source"
 
           echo "Pinned source commit:"
           git rev-parse HEAD
 
-          echo "Submodule revisions:"
-          git submodule status --recursive
+          echo "Hakkun submodule revision:"
+          git -C lib/hakkun rev-parse HEAD
 
-          test -f tools/setup_sail.py
-
-          echo "Sail source files found:"
-          find lib/hakkun -maxdepth 5 \
-            \( -name CMakeLists.txt -o -name '*.cpp' -o -name '*.h' \) \
-            -path '*sail*' -print | head -100
-
+          test -f lib/hakkun/sail/CMakeLists.txt
           rm -rf sail tools/sail
-          python3.12 tools/setup_sail.py
+
+          cmake -S lib/hakkun/sail -B sail -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=/usr/lib/llvm-20/bin/clang \
+            -DCMAKE_CXX_COMPILER=/usr/lib/llvm-20/bin/clang++
+
+          cmake --build sail --target sail -j 4
+
+          test -f sail/sail
+          install -m 0755 sail/sail tools/sail
 
           test -x tools/sail
           ls -l tools/sail
