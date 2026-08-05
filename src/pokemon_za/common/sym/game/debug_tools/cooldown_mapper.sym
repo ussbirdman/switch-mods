@@ -1,0 +1,4 @@
+// Internal diagnostic symbol used only by the v2.0.2 cooldown object mapper.
+// Function at main + 0x00D18420 updates the four float cooldown fields at object + 0x64.
+@game:202
+ZA_DebugTools_CooldownUpdate202 = 0x00D18420

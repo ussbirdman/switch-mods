@@ -17,3 +17,11 @@ struct PokemonData {
     unsigned char ev[6] = {0};
     int moves[4] = {1, 2, 3, 4};
 };
+
+// Cooldown mapper diagnostic controls. This diagnostic never writes cooldown data.
+void cooldownMapperArmPlayer();
+void cooldownMapperArmOpponent();
+void cooldownMapperClear();
+void cooldownMapperRefreshParty();
+void cooldownMapperLogSnapshot();
+const char* cooldownMapperGetText();
