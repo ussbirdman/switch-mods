@@ -11,10 +11,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout project
+      - name: Checkout clean upstream source
         uses: actions/checkout@v4.2.2
         with:
+          repository: Martmists-GH/switch-mods
+          ref: 831e232c19d425816c24c2d2e5d5a79edfb38e6c
+          path: source
           submodules: recursive
+          fetch-depth: 1
+
+      - name: Checkout mapper files from this branch
+        uses: actions/checkout@v4.2.2
+        with:
+          path: overlay
+          submodules: false
+
+      - name: Apply mapper files to clean source
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          install -D -m 0644 \
+            overlay/src/pokemon_za/common/sym/game/debug_tools/cooldown_mapper.sym \
+            source/src/pokemon_za/common/sym/game/debug_tools/cooldown_mapper.sym
+
+          install -D -m 0644 \
+            overlay/src/pokemon_za/mod_debug_tools/src/battle_hooks.cpp \
+            source/src/pokemon_za/mod_debug_tools/src/battle_hooks.cpp
+
+          install -D -m 0644 \
+            overlay/src/pokemon_za/mod_debug_tools/src/hook_util.h \
+            source/src/pokemon_za/mod_debug_tools/src/hook_util.h
+
+          install -D -m 0644 \
+            overlay/src/pokemon_za/mod_debug_tools/src/ui.cpp \
+            source/src/pokemon_za/mod_debug_tools/src/ui.cpp
+
+          test -f source/src/pokemon_za/common/sym/game/debug_tools/cooldown_mapper.sym
+          test -f source/src/pokemon_za/mod_debug_tools/src/battle_hooks.cpp
+          test -f source/src/pokemon_za/mod_debug_tools/src/hook_util.h
+          test -f source/src/pokemon_za/mod_debug_tools/src/ui.cpp
 
       - name: Install system packages
         shell: bash
@@ -38,21 +74,22 @@ jobs:
       - name: Cache built Switch STL
         uses: actions/cache@v4
         with:
-          path: lib/std
-          key: switch-std-${{ runner.os }}-clang20-v2
+          path: source/lib/std
+          key: switch-std-${{ runner.os }}-clang20-v3
 
       - name: Cache Python environment
         uses: actions/cache@v4
         with:
-          path: .python_env
-          key: switch-python-env-${{ runner.os }}-py312-v2
+          path: source/.python_env
+          key: switch-python-env-${{ runner.os }}-py312-v3
 
       - name: Set up switch-tools
         shell: bash
         run: |
           set -euo pipefail
-          git clone --depth 1 https://github.com/switchbrew/switch-tools
-          cd switch-tools
+          git clone --depth 1 https://github.com/switchbrew/switch-tools \
+            "$GITHUB_WORKSPACE/switch-tools"
+          cd "$GITHUB_WORKSPACE/switch-tools"
           ./autogen.sh
           ./configure
           make -j "$(nproc)"
@@ -77,22 +114,31 @@ jobs:
           test -x "$LLVM_BIN/ld.lld"
           echo "$LLVM_BIN" >> "$GITHUB_PATH"
 
-      - name: Build Sail symbol tool
+      - name: Build Sail with the repository helper
         shell: bash
         run: |
           set -euo pipefail
           export PATH="/usr/lib/llvm-20/bin:$PATH"
+          export CC="/usr/lib/llvm-20/bin/clang"
+          export CXX="/usr/lib/llvm-20/bin/clang++"
 
-          test -f lib/hakkun/hakkun/sail/CMakeLists.txt
+          cd "$GITHUB_WORKSPACE/source"
+
+          echo "Pinned source commit:"
+          git rev-parse HEAD
+
+          echo "Submodule revisions:"
+          git submodule status --recursive
+
+          test -f tools/setup_sail.py
+
+          echo "Sail source files found:"
+          find lib/hakkun -maxdepth 5 \
+            \( -name CMakeLists.txt -o -name '*.cpp' -o -name '*.h' \) \
+            -path '*sail*' -print | head -100
+
           rm -rf sail tools/sail
-
-          cmake -S lib/hakkun/hakkun/sail -B sail -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER=/usr/lib/llvm-20/bin/clang \
-            -DCMAKE_CXX_COMPILER=/usr/lib/llvm-20/bin/clang++
-
-          cmake --build sail -j 4
-          install -m 755 sail/sail tools/sail
+          python3.12 tools/setup_sail.py
 
           test -x tools/sail
           ls -l tools/sail
@@ -104,6 +150,7 @@ jobs:
           export PATH="/usr/lib/llvm-20/bin:$PATH"
           export SWITCHTOOLS="$GITHUB_WORKSPACE/switch-tools"
 
+          cd "$GITHUB_WORKSPACE/source"
           test -x tools/sail
 
           cmake -S . -B build -G Ninja \
@@ -120,6 +167,7 @@ jobs:
           export PATH="/usr/lib/llvm-20/bin:$PATH"
           export SWITCHTOOLS="$GITHUB_WORKSPACE/switch-tools"
 
+          cd "$GITHUB_WORKSPACE/source"
           test -x tools/sail
           cmake --build build --target ZA_Debug_Tools_zip_modmanager -j 4
 
@@ -127,5 +175,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ZA-Debug-Tools-Cooldown-Mapper-v1
-          path: build/zips/*.zip
+          path: source/build/zips/*.zip
           if-no-files-found: error
